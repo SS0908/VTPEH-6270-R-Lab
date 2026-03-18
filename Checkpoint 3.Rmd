@@ -1,0 +1,254 @@
+---
+title: "VTPEH 6270 - Check Point 03"
+subtitle: "Data Exploration"
+author: "Sowmya Srinivasan"
+date: "`r Sys.Date()`"
+editor_options:
+  chunk_output_type: console
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 1
+    number_sections: true
+urlcolor: blue
+---
+
+```{r setup, include = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+```
+
+# Introduction
+
+This homework is based on the data set from CDC.  
+
+COVID-19 vaccine hesitancy has been a major public health challenge in the United States, influencing vaccination uptake and contributing to disparities in COVID-19 outcomes across communities. Vaccine hesitancy is influenced by multiple factors, including access to healthcare, social vulnerability, historical mistrust, and demographic characteristics. Understanding geographic and social patterns of vaccine hesitancy at the county level can help inform targeted public health interventions and resource allocation. County-level estimates provide valuable insight into how structural and social determinants influence vaccination behavior across different regions of the country.
+
+The complete data set and accompanying information are available at 
+https://data.cdc.gov/Vaccinations/Vaccine-Hesitancy-for-COVID-19-County-and-local-es/q9mh-h2tw/about_data
+
+
+# Research Question and Background:
+
+
+Research Question:
+
+Is COVID-19 vaccine hesitancy higher in counties with higher Social Vulnerability Index (SVI)
+
+Variable A: Estimated hesitant - percentage of adults estimated to be hesitant toward COVID-19 vaccination; continuous variable
+
+Variable B: SVI category - categorized measure of county-level social vulnerability; categorical variable
+
+
+Scientific Plausibility and Context: 
+
+Socioeconomic status is well-established determinant of health behaviors, including vaccine uptake. Lower-income populations often experience structural barriers to healthcare access, greater exposure to misinformation, and reduced institutional trust, all of which may contribute to vaccine hesitancy. Lee and Huang demonstrated that socioeconomic disadvantage and spatial inequities were significantly associated with higher COVID-19 vaccine hesitancy across geographic regions.(1) Similarly, Lamot and Kribis found that socioeconomic predictors, including income level, were strongly associated with vaccine hesitancy, independent of health literacy dimensions.(2) In the United States, Nguyen et al. reported that middle- and low-income adults exhibited higher levels of COVID-19 vaccine hesitancy compared to higher-income groups.(3) 
+
+
+# Data Preparation
+
+```{r, results='hide'}
+
+library(tidyverse)
+library(readr)
+library(knitr)
+library(kableExtra)
+
+# Read data (CSV must be in same folder as Rmd)
+data = read.csv(
+  "R Lab_Vaccine_Hesitancy.csv",
+  check.names = TRUE
+)
+
+library(readr)
+
+data_clean <- data %>%
+  mutate(
+    # conversion to numeric
+    hesitancy_pct = parse_number(as.character(Estimated.hesitant)),
+    svi_category  = trimws(as.character(SVI.Category))
+  ) %>%
+  filter(
+    !is.na(hesitancy_pct),
+    !is.na(svi_category),
+    svi_category != ""
+  ) %>%
+  mutate(
+    svi_category = factor(svi_category)
+  )
+
+# Reorder SVI categories from lowest to highest vulnerability
+data_clean$svi_category <- factor(
+  data_clean$svi_category,
+  levels = c(
+    "Very Low Vulnerability",
+    "Low Vulnerability",
+    "Moderate Vulnerability",
+    "High Vulnerability",
+    "Very High Vulnerability"
+  )
+)
+
+# Confirm it worked
+dim(data_clean)
+summary(data_clean$hesitancy_pct)
+table(data_clean$svi_category)
+
+```
+
+# Grouped Summary Statistics
+
+### Table 1. Estimated COVID-19 Vaccine Hesitancy (%) by SVI Category
+```{r build-summary-table, include=FALSE}
+
+summary_table <- data_clean %>%
+  group_by(svi_category) %>%
+  summarise(
+    `N` = n(),
+    `Mean (%)` = round(mean(hesitancy_pct), 2),
+    `SD` = round(sd(hesitancy_pct), 2),
+    `Median (%)` = round(median(hesitancy_pct), 2),
+    `IQR` = round(IQR(hesitancy_pct), 2),
+    .groups = "drop"
+  )
+
+```
+
+```{r print-summary-table, echo=FALSE}
+
+knitr::kable(
+  summary_table,
+  caption = "Table 1. Estimated COVID-19 Vaccine Hesitancy (%) by SVI Category",
+  align = c("l", "c", "c", "c", "c", "c")
+)
+```
+
+Interpretation:
+
+
+
+The grouped summary statistics demonstrate a clear gradient in estimated COVID-19 vaccine hesitancy across SVI categories. Counties classified as Very High Vulnerability exhibit the highest mean and median hesitancy, while Very Low Vulnerability counties exhibit the lowest. The steady increase in hesitancy across ordered SVI categories suggests a positive association between social vulnerability and vaccine hesitancy at the county level.
+
+
+
+# Comparative Visualizations
+
+
+```{r, results='hide'}
+
+#Boxplot
+ggplot(data_clean, aes(x = svi_category, y = hesitancy_pct, fill = svi_category)) +
+  geom_boxplot(alpha = 0.75) +
+  labs(
+    x = "SVI Category",
+    y = "Estimated COVID-19 Vaccine Hesitancy (%)",
+    title = "Estimated Vaccine Hesitancy by SVI Category"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 25, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+
+
+
+
+
+
+Interpretation:
+
+
+
+
+The boxplot illustrates the distribution of estimated vaccine hesitancy within each SVI category. Median hesitancy values increase progressively from Very Low to Very High Vulnerability categories, reflecting a consistent upward trend. The interquartile ranges and overall spread indicate variability within each group, but the shift in central tendency across categories supports the presence of an association between greater social vulnerability and higher vaccine hesitancy.
+
+
+
+
+
+```{r}
+# Mean ± 95% CI plot 
+
+plot_df <- data_clean %>%
+  group_by(svi_category) %>%
+  summarise(
+    Mean = mean(hesitancy_pct),
+    SD = sd(hesitancy_pct),
+    N = n(),
+    SE = SD / sqrt(N),
+    Lower = Mean - 1.96 * SE,
+    Upper = Mean + 1.96 * SE,
+    .groups = "drop"
+  )
+
+ggplot(plot_df, aes(x = svi_category, y = Mean)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0.2) +
+  labs(
+    x = "SVI Category",
+    y = "Mean Estimated Hesitancy (%)",
+    title = "Mean Estimated Hesitancy (95% CI) by SVI Category"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 25, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+```{r}
+# Save boxplot as PDF following Nature formatting guidelines
+nature_boxplot = ggplot(data_clean, aes(x = svi_category, y = hesitancy_pct, fill = svi_category)) +
+  geom_boxplot(alpha = 0.75) +
+  labs(
+    x = "SVI Category",
+    y = "Estimated COVID-19 Vaccine Hesitancy (%)",
+    title = "Estimated Vaccine Hesitancy by SVI Category"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 25, hjust = 1, size = 7),
+    axis.text.y = element_text(size = 7),
+    axis.title = element_text(size = 8),
+    plot.title = element_text(hjust = 0.5, size = 9),
+    line = element_line(linewidth = 0.5)
+  )
+
+# Nature guidelines: max width 89mm (single column) or 183mm (double), height proportional
+ggsave(
+  filename = "Figure1_Hesitancy_by_SVI.pdf",
+  plot = nature_boxplot,
+  width = 89,       # single-column width in mm
+  height = 70,      # proportional height
+  units = "mm",
+  device = "pdf",
+  dpi = 300
+)
+```
+
+
+
+
+Interpretation:
+
+
+
+The mean hesitancy plot shows a clear increasing pattern in average vaccine hesitancy across SVI categories. Counties in the Very High Vulnerability category have the highest mean hesitancy, whereas those in the Very Low Vulnerability category have the lowest. The 95% confidence intervals indicate reasonable precision of the estimates and visually reinforce the upward gradient across categories. This pattern is consistent with the hypothesis that higher social vulnerability is associated with increased vaccine hesitancy.
+
+
+# AI Use Disclosure Statement
+
+This document was prepared with assistance from ChatGPT to help structure the report and draft R code for data preparation, descriptive summaries, and visualizations. All code was executed and checked by the author, and interpretations were based on the output produced from the dataset.
+
+# References
+
+1. Lee J, Huang Y. COVID-19 Vaccine Hesitancy: The Role of Socioeconomic Factors and Spatial Effects. Vaccines. 2022;10(3):352. doi:10.3390/vaccines10030352
+
+2. Lamot M, Kirbiš A. Understanding Vaccine Hesitancy: A Comparison of Sociodemographic and Socioeconomic Predictors with Health Literacy Dimensions. Vaccines. 2024;12(10):1141. doi:10.3390/vaccines12101141
+
+3. Nguyen VT, et al. Factors related to COVID-19 vaccine hesitancy among middle- and low-income adults in the U.S. J Epidemiol Community Health. 2023;77(5):328-335.
