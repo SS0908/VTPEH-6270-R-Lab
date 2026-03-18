@@ -1,0 +1,362 @@
+---
+title: "VTPEH 6270 Checkpoint 4"
+author: "Sowmya Srinivasan"
+date: "`r Sys.Date()`"
+editor_options:
+  chunk_output_type: console
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 1
+    number_sections: true
+    latex_engine: xelatex
+urlcolor: blue
+---
+
+```{r setup, include = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.align = "center", out.width = "85%")
+
+```
+
+# Section 1 -  Introduction
+
+This analysis uses the COVID-19 Vaccine Hesitancy for County and Local Estimates data set published by the U.S. Centers for Disease Control and Prevention (CDC). The dataset contains county-level estimates of vaccine hesitancy among adults, vaccination coverage as of June 10, 2021, and measures of social vulnerability, including the Social Vulnerability Index (SVI) and demographic characteristics. Each observation represents a U.S. county and includes both continuous and categorical variables suitable for exploratory data analysis and visualization.
+The complete data set and accompanying information are available at 
+https://data.cdc.gov/Vaccinations/Vaccine-Hesitancy-for-COVID-19-County-and-local-es/q9mh-h2tw/about_data
+
+# Section 2 - Objective and Approach
+
+## 2.1 Specific Objective
+
+This specific report investigates whether the estimated proportion of vaccine-hesitant adults is higher in the U.S counties with greater social vulnerability. Specifically, it examines the association between Social Vulnerability Index (SVI) [Variable A] and the Estimated Proportion of Hesitant Adults [Variable B] at county level, using data from 3,141 U.S Counties.
+
+## 2.2 Loading Data and Data Description
+
+### Loading Data
+
+```{r libraries}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(tidyr)
+library(purrr)
+library(scales)
+
+```
+
+```{r load-data, results='hide'}
+
+# Set working directory
+setwd("/Users/sowmya427/Desktop/VTPEH-6270-R-Lab")
+
+# Load file
+data <- read.csv(
+  "R Lab_Vaccine_Hesitancy.csv",
+  check.names = TRUE
+)
+
+
+data_raw = read.csv("R Lab_Vaccine_Hesitancy.csv")
+
+# Rename by position
+colnames(data_raw)[4] <- "hesitant"
+colnames(data_raw)[7] <- "svi"
+colnames(data_raw)[8] <- "svi_cat"
+
+data <- data_raw %>%
+  mutate(hesitant = as.numeric(gsub("%", "", hesitant)) / 100) %>%
+  filter(!is.na(svi), !is.na(hesitant))
+
+# Verify
+nrow(data)
+head(data$hesitant)
+```
+
+### Description Table
+
+```{r var-table}
+
+var_table = data.frame(
+  `Variable Name` = c("Estimated hesitant", "Social Vulnerability Index (SVI)", "SVI Category"),
+  `Variable Type` = c("Continuous (proportion)", "Continuous (index 0–1)", "Ordered categorical"),
+  `R Class`       = c("numeric", "numeric", "character"),
+  check.names = FALSE
+)
+
+kable(var_table, booktabs = TRUE, caption = "Variables used in this analysis") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position", "scale_down"),
+                full_width = FALSE) %>%
+  kable_styling(latex_options = "hold_position")
+
+```
+
+## Data Visualization 
+
+### Plot 1. and 2 - Scatter Plot and Box Plot
+
+```{r scatter-plot, fig.cap="Scatter plot of SVI vs. vaccine hesitancy by U.S. county."}
+svi_colors = c(
+  "Very Low Vulnerability"  = "#2C7BB6",
+  "Low Vulnerability"       = "#74C476",
+  "Moderate Vulnerability"  = "#FEC44F",
+  "High Vulnerability"      = "#F16913",
+  "Very High Vulnerability" = "#CB181D"
+)
+
+data$svi_cat = factor(data$svi_cat, levels = names(svi_colors))
+
+ggplot(data, aes(x = svi, y = hesitant, color = svi_cat)) +
+  geom_point(alpha = 0.35, size = 0.8) +
+  geom_smooth(method = "lm", color = "black", linewidth = 1, se = TRUE) +
+  scale_color_manual(values = svi_colors, name = "SVI Category") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(title = "SVI vs. Vaccine Hesitancy by U.S. County",
+       x = "Social Vulnerability Index (SVI)",
+       y = "Estimated Proportion Hesitant") +
+  theme_minimal()
+```
+```{r boxplot, fig.cap="Distribution of vaccine hesitancy by SVI category."}
+
+svi_colors = c(
+  "Very Low Vulnerability"  = "#2C7BB6",
+  "Low Vulnerability"       = "#74C476",
+  "Moderate Vulnerability"  = "#FEC44F",
+  "High Vulnerability"      = "#F16913",
+  "Very High Vulnerability" = "#CB181D"
+)
+
+data$svi_cat <- factor(data$svi_cat, levels = names(svi_colors))
+
+ggplot(data, aes(x = svi_cat, y = hesitant, fill = svi_cat)) +
+  geom_boxplot(alpha = 0.75, outlier.size = 0.5) +
+  scale_fill_manual(values = svi_colors) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(title = "Vaccine Hesitancy by SVI Category",
+       x = "SVI Category", y = "Estimated Proportion Hesitant") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+
+## Description of Plausible Relationships
+
+The scatter plot reveals a positive linear relationship between the Social Vulnerability Index (SVI) and estimated vaccine hesitancy: as social vulnerability increases, the proportion of hesitant adults tends to increase as well. The trend line confirms this upward pattern across all 3,141 counties. However, there is considerable spread around the trend line, indicating that SVI alone does not fully explain hesitancy — other unmeasured factors contribute to the variability.
+
+The boxplot reinforce this pattern. Median hesitancy is lowest in the Very Low Vulnerability group (~10%) and increases steadily across categories, reaching its highest level in the Very High Vulnerability group (~15%). The boxes also widen slightly from left to right, suggesting that more vulnerable counties show greater variability in hesitancy. This consistent step-wise increase across all five SVI categories supports a positive linear relationship as the most plausible model for the association between these two variables.
+
+## Parameters of Interest Table
+
+```{r fit-model}
+fit = lm(hesitant ~ svi, data = data)
+a_est = round(coef(fit)[2], 4)
+b_est = round(coef(fit)[1], 4)
+eps_est = round(sigma(fit), 4)
+
+param_table = data.frame(
+  Parameter   = c("Slope", "Intercept", "Noise"),
+  Symbol      = c("a", "b", "e"),
+  Description = c(
+    paste0("Increase in hesitancy per 1-unit increase in SVI (est: ", a_est, ")"),
+    paste0("Baseline hesitancy when SVI = 0 (est: ", b_est, ")"),
+    paste0("Residual standard deviation - unexplained variability (est: ", eps_est, ")")
+  ),
+  check.names = FALSE
+)
+
+kable(param_table, booktabs = TRUE, format = "latex",
+      caption = "Parameters of the linear model linking Social Vulnerability Index (SVI) to estimated vaccine hesitancy, with values estimated from the observed county-level data.") %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+
+# Section 3 - Simulation
+
+## Simulation Basis 
+
+```{r simulate-function, results='hide'}
+set.seed(42)
+
+simulate_hesitancy <- function(n = 500, slope = 0.08, intercept = 0.085, noise = 0.03) {
+  svi_sim      <- runif(n, min = 0, max = 1)
+  hesitant_sim <- intercept + slope * svi_sim + rnorm(n, mean = 0, sd = noise)
+  hesitant_sim <- pmax(0, pmin(1, hesitant_sim))  # keep between 0 and 1
+  data.frame(svi = svi_sim, hesitant = hesitant_sim)
+}
+
+# Test it
+sim_example <- simulate_hesitancy(n = 500, slope = 0.08, noise = 0.03)
+head(sim_example)
+
+```
+
+
+## Simulation Output 
+
+```{r summarize-function, results='hide'}
+summarize_sim <- function(sim_data) {
+  sim_data %>%
+    mutate(svi_quartile = ntile(svi, 4)) %>%
+    group_by(svi_quartile) %>%
+    summarise(
+      mean_hesitant   = mean(hesitant),
+      median_hesitant = median(hesitant),
+      sd_hesitant     = sd(hesitant),
+      n               = n(),
+      .groups         = "drop"
+    )
+}
+
+print(summarize_sim(sim_example))
+
+```
+
+
+## Simulation Function 
+
+```{r run-simulation, results='hide'}
+run_simulation <- function(n = 500, slope = 0.08, intercept = 0.085, noise = 0.03) {
+  sim_data    <- simulate_hesitancy(n, slope, intercept, noise)
+  sim_summary <- summarize_sim(sim_data)
+  list(data = sim_data, summary = sim_summary)
+}
+
+# Test
+run_simulation(n = 200, slope = 0.10, noise = 0.04)$summary
+
+```
+
+
+## Simulation Automation
+
+```{r automate, results='hide'}
+
+effect_sizes <- seq(0, 0.18, length.out = 10)
+sample_sizes <- c(30, 60, 100, 200, 350, 500, 750, 1000, 2000, 3200)
+noise_levels <- c(0.015, 0.03, 0.06)
+
+param_grid <- expand.grid(slope = effect_sizes, n = sample_sizes, noise = noise_levels)
+
+set.seed(123)
+sim_results <- pmap(param_grid, function(slope, n, noise) {
+  run_simulation(n = n, slope = slope, intercept = 0.085, noise = noise)
+})
+
+cat("Total simulations:", length(sim_results))
+
+```
+
+
+# Section 4 - Visualization of Simulation Results
+
+### Plot 1 and 2 - Heatmap and Line Plot:
+
+```{r heatmap, fig.cap="Hesitancy gap (Q4-Q1) across effect sizes and sample sizes, by noise level.", fig.height=7, fig.width=8}
+sim_summary_data <- param_grid %>%
+  mutate(run_id = row_number()) %>%
+  bind_cols(
+    map_dfr(sim_results, function(r) {
+      r$summary %>%
+        summarise(diff_q4_q1 = mean_hesitant[svi_quartile == 4] - 
+                                mean_hesitant[svi_quartile == 1])
+    })
+  )
+
+sim_summary_data %>%
+  mutate(noise_label = paste0("Noise SD = ", noise)) %>%
+  ggplot(aes(x = factor(n), y = factor(round(slope, 3)), fill = diff_q4_q1)) +
+  geom_tile(color = "white", linewidth = 0.3) +
+  facet_wrap(~noise_label, ncol = 1) +
+  scale_fill_gradient2(low = "#2C7BB6", mid = "#FFFFBF", high = "#D7191C",
+                       midpoint = 0.09, name = "Hesitancy\nGap (Q4-Q1)",
+                       labels = percent_format(accuracy = 1)) +
+  labs(title = "Simulated Hesitancy Gap by Effect Size, Sample Size & Noise",
+       x = "Sample Size (n)", y = "Effect Size (slope)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 35, hjust = 1),
+        strip.text = element_text(face = "bold"),
+        panel.grid = element_blank())
+```
+```{r lineplot, fig.cap="Mean hesitancy by SVI quartile for different slopes (n=500, SD=0.03)."}
+param_grid %>%
+  mutate(run_id = row_number()) %>%
+  filter(n == 500, noise == 0.03) %>%
+  rowwise() %>%
+  mutate(summary = list(sim_results[[run_id]]$summary %>%
+                          rename(count = n))) %>%
+  unnest(summary) %>%
+  ggplot(aes(x = svi_quartile, y = mean_hesitant,
+             group = factor(slope), color = slope)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2) +
+  scale_color_gradient(low = "#AED6F1", high = "#C0392B", name = "Slope (a)") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  scale_x_continuous(breaks = 1:4,
+                     labels = c("Q1 (Low SVI)", "Q2", "Q3", "Q4 (High SVI)")) +
+  labs(title = "Mean Hesitancy Across SVI Quartiles by Effect Size",
+       subtitle = "n = 500, noise SD = 0.03",
+       x = "SVI Quartile", y = "Mean Estimated Hesitancy") +
+  theme_minimal()
+
+```
+
+
+```{r save-figure, include=FALSE}
+# Save the scatter plot as a PDF following Nature formatting guidelines
+# Nature guidelines: max width 89mm (single column) or 183mm (double column)
+# Font size minimum 5pt, preferred 7pt. Clean, minimal style.
+
+nature_plot <- ggplot(data, aes(x = svi, y = hesitant, color = svi_cat)) +
+  geom_point(alpha = 0.35, size = 0.5) +
+  geom_smooth(method = "lm", color = "black", linewidth = 0.8, se = TRUE) +
+  scale_color_manual(values = svi_colors, name = "SVI Category") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "SVI vs. Vaccine Hesitancy by U.S. County",
+    x     = "Social Vulnerability Index (SVI)",
+    y     = "Estimated Proportion Hesitant"
+  ) +
+  theme_classic(base_size = 7) +        # Nature prefers 7pt font
+  theme(
+    legend.key.size  = unit(0.3, "cm"),
+    legend.text      = element_text(size = 6),
+    legend.title     = element_text(size = 7),
+    plot.title       = element_text(size = 7, face = "bold"),
+    axis.text        = element_text(size = 6),
+    axis.title       = element_text(size = 7)
+  )
+
+# Save as PDF - 183mm wide (double column Nature figure), 120mm tall
+ggsave(
+  filename = "Figure1_Nature_Format.pdf",
+  plot     = nature_plot,
+  width    = 183,
+  height   = 120,
+  units    = "mm",
+  device   = "pdf"
+)
+```
+
+
+
+# Section 5 - Interpretation
+
+These simulations explored how the relationship between Social Vulnerability Index (SVI) and vaccine hesitancy changes across different effect sizes, sample sizes, and noise levels.
+
+Effect size is the most important driver of the association. The line plot clearly shows that when the slope is close to zero (light blue lines), mean hesitancy remains flat across all four SVI quartiles — meaning no detectable association exists. As the slope increases (darker red lines), the gap between the lowest SVI quartile (Q1) and highest SVI quartile (Q4) grows substantially, reaching nearly 25% hesitancy in Q4 for the largest slopes. This confirms that the strength of the true biological relationship determines whether a pattern is observable at all.
+
+Noise obscures the signal, especially at small sample sizes. The heatmap shows that at low noise (σ = 0.015), the hesitancy gap is clearly driven by the effect size — higher slopes consistently produce redder tiles. At high noise (σ = 0.06), the color pattern becomes less clean, particularly at small sample sizes (n = 30–60), where random variability dominates and the estimated gap becomes unreliable even when a true effect exists.
+
+Larger sample sizes stabilize the estimates. In the heatmap, the color pattern becomes more consistent and predictable as sample size increases from left to right. At n = 3,200 — similar to the actual dataset size of 3,141 counties — the hesitancy gap estimates are highly stable across all noise levels, meaning the real dataset is well-powered to detect this association.
+
+Overall, these simulations suggest that the positive association between SVI and vaccine hesitancy observed in the real data is likely a true signal. With an estimated slope of approximately 0.08 and noise of approximately 0.03, our actual dataset falls in the region of the heatmap where the association is clearly detectable, giving us confidence that the relationship is real and not a product of random chance.
+
+
+
+# AI Use Disclosure Statement
+
+This document was created with the assistance of Claude (Anthropic) to help structure and generate the R code, which was reviewed and adjusted by the author. Interpretations and written sections were composed by the author.
