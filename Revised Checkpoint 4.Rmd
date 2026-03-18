@@ -197,7 +197,7 @@ head(sim_example)
 
 ## Simulation Output 
 
-```{r summarize-function, results='hide'}
+```{r summarize-function}
 summarize_sim <- function(sim_data) {
   sim_data %>%
     mutate(svi_quartile = ntile(svi, 4)) %>%
@@ -347,7 +347,7 @@ ggsave(
 
 These simulations explored how the relationship between Social Vulnerability Index (SVI) and vaccine hesitancy changes across different effect sizes, sample sizes, and noise levels.
 
-Effect size is the most important driver of the association. The line plot clearly shows that when the slope is close to zero (light blue lines), mean hesitancy remains flat across all four SVI quartiles — meaning no detectable association exists. As the slope increases (darker red lines), the gap between the lowest SVI quartile (Q1) and highest SVI quartile (Q4) grows substantially, reaching nearly 25% hesitancy in Q4 for the largest slopes. This confirms that the strength of the true biological relationship determines whether a pattern is observable at all.
+Effect size appears to be a strong driver of the association in these simulations, though sample size and noise also clearly influence the detectable signal. The line plot clearly shows that when the slope is close to zero (light blue lines), mean hesitancy remains flat across all four SVI quartiles — meaning no detectable association exists. As the slope increases (darker red lines), the gap between the lowest SVI quartile (Q1) and highest SVI quartile (Q4) grows substantially, reaching nearly 25% hesitancy in Q4 for the largest slopes. This confirms that the strength of the true biological relationship determines whether a pattern is observable at all.
 
 Noise obscures the signal, especially at small sample sizes. The heatmap shows that at low noise (σ = 0.015), the hesitancy gap is clearly driven by the effect size — higher slopes consistently produce redder tiles. At high noise (σ = 0.06), the color pattern becomes less clean, particularly at small sample sizes (n = 30–60), where random variability dominates and the estimated gap becomes unreliable even when a true effect exists.
 
