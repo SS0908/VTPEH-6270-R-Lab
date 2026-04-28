@@ -1,0 +1,12 @@
+name: deploy-a-shiny-app
+title: deploy-a-shiny-app
+username: ss0908
+account: ss0908
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 17134139
+bundleId: 11851112
+url: https://ss0908.shinyapps.io/deploy-a-shiny-app/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
