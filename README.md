@@ -75,6 +75,13 @@ VTPEH-6270-R-Lab/
 
 ---
 
+
+## Live Shiny App
+View the interactive app here: [Vaccine Hesitancy & Social Vulnerability](https://ss0908.shinyapps.io/ShinyAppHW1/)
+
+---
+
+
 ## AI Tool Disclosure
 This project was completed with assistance from Claude (Anthropic) and ChatGPT to help structure reports and draft R code. All code was reviewed, executed, and adjusted by the author. Interpretations and written sections were composed by the author.
 
