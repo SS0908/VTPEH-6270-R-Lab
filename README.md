@@ -40,20 +40,16 @@ Is COVID-19 vaccine hesitancy higher in counties with higher Social Vulnerabilit
 ```
 VTPEH-6270-R-Lab/
 ├── data/
-│   └── R Lab_Vaccine_Hesitancy.csv       # Original CDC dataset
+│   └── R Lab_Vaccine_Hesitancy.csv     # Original CDC dataset
 ├── scripts/
 │   ├── Revised Checkpoint3_DataExploration.R   # Data exploration script
-│   └── Checkpoint4_Simulation.R                # Data simulation script
-├── figures/
-│   ├── Figure1_Hesitancy_by_SVI.pdf            # Boxplot (Nature format)
-│   ├── Figure2_MeanHesitancy_CI.pdf            # Mean CI plot (Nature format)
-│   ├── Figure1_Scatter_SVI_Hesitancy.pdf       # Scatter plot (Nature format)
-│   ├── Figure2_Boxplot_SVI_Hesitancy.pdf       # Boxplot CP4 (Nature format)
-│   ├── Figure3_Heatmap_Simulation.pdf          # Heatmap (Nature format)
-│   └── Figure4_Lineplot_EffectSize.pdf         # Line plot (Nature format)
-├── reports/
-│   ├── Revised Checkpoint 3.Rmd               # Checkpoint 3 Rmd
-│   └── Revised Checkpoint 4.Rmd               # Checkpoint 4 Rmd
+│   ├── Revised Checkpoint4_Simulation.R        # Data simulation script
+│   ├── Shinyapp.R                              # Interactive Shiny app
+│   ├── VTPEH_6270_Checkpoint 6.R               # Checkpoint 6 script
+│   └── VTPEH_6270_Final_Report.R               # Final report script
+├── Output/
+│   ├── figures/                        # Generated figures (Nature format)
+│   └── reports/                        # Rendered reports
 ├── README.md
 └── .gitignore
 ```
